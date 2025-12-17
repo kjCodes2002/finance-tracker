@@ -20,3 +20,12 @@ class TransactionResponse(BaseModel):
     description: str
     transaction_date: datetime.datetime
     created_at: datetime.datetime
+
+class WalletCreate(BaseModel):
+    name: str
+
+class WalletResponse(BaseModel):
+    id: str
+    user_id: str
+    name: str
+    created_at: datetime.datetime

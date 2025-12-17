@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
-from models import TransactionCreate, TransactionResponse
+from models import TransactionCreate, TransactionResponse, WalletCreate, WalletResponse
 from database import engine, session
 from typing import List
 from pydantic import Optional
@@ -84,6 +84,44 @@ def update_transaction(id: str, transaction: TransactionCreate, user_id: str = D
      db.refresh(db_transaction)
      return db_transaction
 
+@app.post('/wallet', response_model = WalletResponse)
+def add_wallet(wallet: WalletCreate, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+     new_wallet = db_models.Wallet(**wallet.model_dump(), user_id = user_id)
+     db.add(new_wallet)
+     db.commit()
+     db.refresh(new_wallet)
+     return new_wallet
+
+@app.get('/wallet', response_model = List[WalletResponse])
+def get_all_wallets(db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+     query = db.query(db_models.Wallet).filter(db_models.Wallet.user_id == user_id)
+     return query.all()
+
+@app.get('/wallet/{id}', response_model = WalletResponse)
+def get_wallet(id: str, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+     db_wallet = db.query(db_models.Wallet).filter(db_models.Wallet.id == id, db_models.Wallet.user_id == user_id).first()
+     if not db_wallet:
+          raise HTTPException(status_code = 404, detail="Wallet not found")
+     return db_wallet
+
+@app.put('/wallet/{id}', response_model = WalletResponse)
+def update_wallet(wallet: WalletCreate, id: str, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+     db_wallet = db.query(db_models.Wallet).filter(db_models.Wallet.id == id, db_models.Wallet.user_id == user_id).first()
+     if not db_wallet:
+          raise HTTPException(status_code = 404, detail="Wallet not found")
+     db_wallet.name = wallet.name
+     db.commit()
+     db.refresh(db_wallet)
+     return db_wallet
+
+@app.delete('/wallet/{id}')
+def delete_wallet(id: str, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+     db_wallet = db.query(db_models.Wallet).filter(db_models.Wallet.id == id, db_models.Wallet.user_id == user_id).first()
+     if not db_wallet:
+          raise HTTPException(status_code = 404, detail="Wallet not found")
+     db.delete(db_wallet)
+     db.commit()
+     return {"detail": "Wallet deleted successfully"}
 
 
 

@@ -1,12 +1,13 @@
 from sqlalchemy import Column, String, DateTime, Numeric, func, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import declarative_base, relationship
+from uuid import uuid4
 
 Base = declarative_base()
 
 class User(Base):
     __tablename__ = 'users'
 
-    id = Column(String(36), primary_key=True, index=True)
+    id = Column(String(36), primary_key=True, index=True, default = lambda: str(uuid4()))
     email = Column(String(255), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -18,7 +19,7 @@ class User(Base):
 class Wallet(Base):
     __tablename__ = 'wallets'
 
-    id = Column(String(36), primary_key=True, index=True)
+    id = Column(String(36), primary_key=True, index=True, default = lambda: str(uuid4()))
     user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     name = Column(String(100), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -32,7 +33,7 @@ class Category(Base):
         UniqueConstraint('user_id', 'name', name='uq_user_category_name'),
     )
 
-    id = Column(String(36), primary_key=True, index=True)
+    id = Column(String(36), primary_key=True, index=True, default = lambda: str(uuid4()))
     user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     name = Column(String(100), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -43,7 +44,7 @@ class Category(Base):
 class Transaction(Base):
     __tablename__ = 'transactions'
 
-    id = Column(String(36), primary_key=True, index=True)
+    id = Column(String(36), primary_key=True, index=True, default = lambda: str(uuid4()))
     user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), index=True, nullable=False)
     wallet_id = Column(String(36), ForeignKey('wallets.id', ondelete='CASCADE'), nullable=False, index=True)
     category_id = Column(String(36), ForeignKey('categories.id'), nullable=True)
