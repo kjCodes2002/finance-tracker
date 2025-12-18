@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
-from models import TransactionCreate, TransactionResponse, WalletCreate, WalletResponse
+from sqlalchemy.exc import IntegrityError
+from models import TransactionCreate, TransactionResponse, WalletCreate, WalletResponse, CategoryCreate, CategoryResponse
 from database import engine, session
 from typing import List
 from pydantic import Optional
@@ -123,5 +124,49 @@ def delete_wallet(id: str, db: Session = Depends(get_db), user_id: str = Depends
      db.commit()
      return {"detail": "Wallet deleted successfully"}
 
+@app.post('/category', response_model = CategoryResponse)
+def add_category(category: CategoryCreate, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+     db_category = db_models.Category(**category.model_dump(), user_id = user_id)
+     db.add(db_category)
+     try:
+          db.commit()
+     except IntegrityError:
+          db.rollback()
+          raise HTTPException(status_code = 400, detail = "Category with this name already exists")
+     db.refresh(db_category)
+     return db_category
 
+@app.get('/category', response_model = List[CategoryResponse])
+def get_all_categories(db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+     query = db.query(db_models.Category).filter(db_models.Category.user_id == user_id)
+     return query.all()
 
+@app.get('/category/{id}', response_model = CategoryResponse)
+def get_category(id: str, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+     db_category = db.query(db_models.Category).filter(db_models.Category.id == id, db_models.Category.user_id == user_id).first()
+     if not db_category:
+          raise HTTPException(status_code = 404, detail = "Category not found")
+     return db_category
+
+@app.put('/category/{id}', response_model = CategoryResponse)
+def update_category(category: CategoryCreate, id: str, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+     db_category = db.query(db_models.Category).filter(db_models.Category.id == id, db_models.Category.user_id == user_id).first()
+     if not db_category:
+          raise HTTPException(status_code = 404, detail="Category not found")
+     db_category.name = category.name
+     try:
+          db.commit()
+     except IntegrityError:
+          db.rollback()
+          raise HTTPException(status_code = 400, detail = "Category with this name already exists")
+     db.refresh(db_category)
+     return db_category
+
+@app.delete('/category/{id}')
+def delete_category(id: str, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+     db_category = db.query(db_models.Category).filter(db_models.Category.id == id, db_models.Category.user_id == user_id).first()
+     if not db_category:
+          raise HTTPException(status_code = 404, detail = "Category not found")
+     db.delete(db_category)
+     db.commit()
+     return {"detail": "Category deleted successfully"}

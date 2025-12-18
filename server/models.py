@@ -29,3 +29,12 @@ class WalletResponse(BaseModel):
     user_id: str
     name: str
     created_at: datetime.datetime
+
+class CategoryCreate(BaseModel):
+    name: str
+
+class CategoryResponse(BaseModel):
+    id: str
+    user_id: str
+    name: str
+    created_at: datetime.datetime
