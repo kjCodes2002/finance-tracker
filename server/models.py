@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Optional
 import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Literal, List
 class TransactionCreate(BaseModel):
     wallet_id: str
     category_id: Optional[str] = None
@@ -38,3 +38,15 @@ class CategoryResponse(BaseModel):
     user_id: str
     name: str
     created_at: datetime.datetime
+
+class WalletBalance(BaseModel):
+    wallet_id: str
+    balance: Decimal
+
+class CategoryBalance(BaseModel):
+    category_id: Optional[str] = None
+    balance: Decimal
+
+class WalletCategoryBalance(BaseModel):
+    wallet_id: str
+    balance: List[CategoryBalance]

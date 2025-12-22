@@ -1,7 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from models import TransactionCreate, TransactionResponse, WalletCreate, WalletResponse, CategoryCreate, CategoryResponse
+from models import TransactionCreate, TransactionResponse, WalletCreate, WalletResponse, CategoryCreate, CategoryResponse, WalletBalance, WalletCategoryBalance
 from database import engine, session
 from typing import List
 from pydantic import Optional
@@ -170,3 +171,96 @@ def delete_category(id: str, db: Session = Depends(get_db), user_id: str = Depen
      db.delete(db_category)
      db.commit()
      return {"detail": "Category deleted successfully"}
+
+@app.get('/wallet/{id}/balance', response_model=WalletBalance)
+def get_wallet_balance(
+    id: str,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id)
+):
+    wallet = (
+        db.query(db_models.Wallet)
+        .filter(
+            db_models.Wallet.id == id,
+            db_models.Wallet.user_id == user_id
+        )
+        .first()
+    )
+
+    if not wallet:
+        raise HTTPException(status_code=404, detail="Wallet not found")
+
+    balance = (
+        db.query(
+            func.coalesce(
+                func.sum(
+                    case(
+                        (db_models.Transaction.type == "income", db_models.Transaction.amount),
+                        (db_models.Transaction.type == "expense", -db_models.Transaction.amount),
+                        else_=0
+                    )
+                ),
+                0
+            )
+        )
+        .filter(
+            db_models.Transaction.wallet_id == id,
+            db_models.Transaction.user_id == user_id
+        )
+        .scalar()
+    )
+
+    return {
+        "wallet_id": id,
+        "balance": balance
+    }
+
+@app.get('/wallet/{id}/category-balance', response_model=WalletCategoryBalance)
+def get_wallet_category_balance(
+    id: str,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id)
+):
+    wallet = (
+        db.query(db_models.Wallet)
+        .filter(
+            db_models.Wallet.id == id,
+            db_models.Wallet.user_id == user_id
+        )
+        .first()
+    )
+
+    if not wallet:
+        raise HTTPException(status_code=404, detail="Wallet not found")
+
+    rows = (
+        db.query(
+            db_models.Transaction.category_id.label("category_id"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (db_models.Transaction.type == "income", db_models.Transaction.amount),
+                        (db_models.Transaction.type == "expense", -db_models.Transaction.amount),
+                        else_=0
+                    )
+                ),
+                0
+            ).label("balance")
+        )
+        .filter(
+            db_models.Transaction.wallet_id == id,
+            db_models.Transaction.user_id == user_id
+        )
+        .group_by(db_models.Transaction.category_id)
+        .all()
+    )
+
+    balances = [
+        {"category_id": row.category_id, "balance": row.balance}
+        for row in rows
+    ]
+
+    return {
+        "wallet_id": id,
+        "balance": balances
+    }
