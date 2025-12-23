@@ -7,6 +7,7 @@ from database import engine, session
 from typing import List
 from pydantic import Optional
 import db_models
+import datetime
 app = FastAPI()
 
 def get_db():
@@ -218,8 +219,10 @@ def get_wallet_balance(
 @app.get('/wallet/{id}/category-balance', response_model=WalletCategoryBalance)
 def get_wallet_category_balance(
     id: str,
+    from_date: Optional[datetime.datetime] = None,
+    to_date: Optional[datetime.datetime] = None,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(get_current_user_id),
 ):
     wallet = (
         db.query(db_models.Wallet)
@@ -233,7 +236,7 @@ def get_wallet_category_balance(
     if not wallet:
         raise HTTPException(status_code=404, detail="Wallet not found")
 
-    rows = (
+    query = (
         db.query(
             db_models.Transaction.category_id.label("category_id"),
             func.coalesce(
@@ -252,8 +255,15 @@ def get_wallet_category_balance(
             db_models.Transaction.user_id == user_id
         )
         .group_by(db_models.Transaction.category_id)
-        .all()
     )
+
+    if from_date:
+        query = query.filter(db_models.Transaction.transaction_date >= from_date)
+
+    if to_date:
+        query = query.filter(db_models.Transaction.transaction_date <= to_date)
+
+    rows = query.all()
 
     balances = [
         {"category_id": row.category_id, "balance": row.balance}
@@ -262,5 +272,5 @@ def get_wallet_category_balance(
 
     return {
         "wallet_id": id,
-        "balance": balances
+        "balances": balances
     }
