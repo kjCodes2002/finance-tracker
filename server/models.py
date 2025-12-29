@@ -45,8 +45,9 @@ class WalletBalance(BaseModel):
 
 class CategoryBalance(BaseModel):
     category_id: Optional[str] = None
+    category_name: Optional[str] 
     balance: Decimal
 
 class WalletCategoryBalance(BaseModel):
     wallet_id: str
-    balance: List[CategoryBalance]
+    balances: List[CategoryBalance]

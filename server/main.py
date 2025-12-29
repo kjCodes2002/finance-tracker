@@ -239,6 +239,7 @@ def get_wallet_category_balance(
     query = (
         db.query(
             db_models.Transaction.category_id.label("category_id"),
+            db_models.Category.name.label("category_name"),
             func.coalesce(
                 func.sum(
                     case(
@@ -249,12 +250,15 @@ def get_wallet_category_balance(
                 ),
                 0
             ).label("balance")
+        ).outerjoin(
+             db_models.Category,
+             db_models.Transaction.category_id == db_models.Category.id
         )
         .filter(
             db_models.Transaction.wallet_id == id,
             db_models.Transaction.user_id == user_id
         )
-        .group_by(db_models.Transaction.category_id)
+        .group_by(db_models.Transaction.category_id, db_models.Category.name)
     )
 
     if from_date:
@@ -266,7 +270,7 @@ def get_wallet_category_balance(
     rows = query.all()
 
     balances = [
-        {"category_id": row.category_id, "balance": row.balance}
+        {"category_id": row.category_id, "category_name": row.category_name or "Uncategorized", "balance": row.balance}
         for row in rows
     ]
 
